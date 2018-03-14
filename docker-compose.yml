@@ -1,0 +1,65 @@
+version: '2'
+services:
+  base:
+    restart: always
+    build: .
+    environment:
+      # Run `docker-compose run web config generate-secret-key`
+      # to get the SENTRY_SECRET_KEY value.
+      SENTRY_SECRET_KEY: 'eyz4i_f+9g)y1ff-ba@bvy&o3#rolc)(np*jub1wxr^t!1mawm'
+      SENTRY_MEMCACHED_HOST: memcached
+      SENTRY_REDIS_HOST: redis
+      SENTRY_POSTGRES_HOST: docker.for.mac.host.internal
+      SENTRY_DB_NAME: sentry
+      SENTRY_EMAIL_HOST: smtp
+    volumes:
+      - ./data/sentry:/var/lib/sentry/files
+
+  nginx:
+    image: nginx-with-sentry:0.1.0
+    restart: always 
+    ports:
+      - 80:80
+      - 443:443
+    links:
+      - web
+
+  smtp:
+    restart: always
+    image: tianon/exim4
+
+  memcached:
+    restart: always
+    image: memcached:1.4
+
+  redis:
+    restart: always
+    image: redis:3.2-alpine
+
+  web:
+    restart: always
+    extends: base
+    links:
+      - redis
+      - memcached
+      - smtp
+    ports:
+      - '9000:9000'
+
+  cron:
+    restart: always
+    extends: base
+    command: run cron
+    links:
+      - redis
+      - memcached
+      - smtp
+
+  worker:
+    restart: always
+    extends: base
+    command: run worker
+    links:
+      - redis
+      - memcached
+      - smtp
